@@ -7,11 +7,11 @@ export interface GuestLayoutProps {
 }
 
 /**
- * Shared chrome for every unauthenticated page — Login, Register, Forgot
- * Password, Reset Password. Owns the centered card frame, brand mark, and
- * footer; each page supplies its own heading/description/form as `children`
- * inside the card body. Mounted once via app/(guest)/layout.tsx so it never
- * needs to be repeated per page.
+ * Shared chrome for every unauthenticated page — Login, Register, Forgot/
+ * Reset Password (one route, per Frontend Plan v5.1 §D View 3), and Accept
+ * Invite. Owns the centered card frame, brand mark, and footer; each page
+ * supplies its own heading/description/form as `children` inside the card
+ * body. Mounted once via app/(guest)/layout.tsx.
  */
 export function GuestLayout({ children }: GuestLayoutProps) {
   return (

@@ -13,4 +13,7 @@ export const PROTECTED_PREFIXES: { prefix: string; role: Role }[] = [
   { prefix: '/admin', role: 'ADMIN' },
 ];
 
-export const PUBLIC_PATHS = ['/login', '/register', '/forgot-password'];
+// '/invite' added — Accept Invite / Set Password (Frontend Plan v5.0 §D). Tenants
+// reach this via a Supabase invite link before they have any session at all, so
+// it has to be public like the other guest routes, not behind middleware's auth gate.
+export const PUBLIC_PATHS = ['/login', '/register', '/forgot-password', '/invite'];

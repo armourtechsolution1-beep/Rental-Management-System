@@ -1,6 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
-
+import { createClient } from '@supabase/supabase-js';
 /**
  * Server-side Supabase client (Server Components, Route Handlers, Server Actions).
  * Not used for auth identity here — NextAuth owns the session.
@@ -37,7 +37,6 @@ export async function createSupabaseServerClient() {
  * and by trusted server code (e.g. admin actions). NEVER import this in client code.
  */
 export function createSupabaseServiceRoleClient() {
-  const { createClient } = require('@supabase/supabase-js');
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,

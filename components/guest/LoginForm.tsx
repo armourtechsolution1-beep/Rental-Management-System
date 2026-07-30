@@ -20,13 +20,8 @@ export interface LoginFormProps {
   /**
    * Where to send the user after a successful sign-in. Populated by
    * middleware's `?callbackUrl=` when it redirected an unauthenticated
-   * visitor here from a protected route. Falls back to the user's role
-   * home (`ROLE_HOME`) when absent — e.g. someone arriving at /login directly.
-   *
-   * NOTE: assumes `ROLE_HOME` is keyed by the same role string NextAuth's
-   * `session.user.role` carries (per `types/next-auth.d.ts`'s augmentation,
-   * per the v2.0 Authentication Architecture spec). Not yet verified against
-   * the actual file — flag if the key shape differs.
+   * visitor here from a protected route. Falls back to `ROLE_HOME[activeRole]`
+   * when absent — e.g. someone arriving at /login directly.
    */
   callbackUrl?: string;
 }
@@ -52,22 +47,30 @@ export function LoginForm({ callbackUrl }: LoginFormProps) {
       redirect: false,
     });
 
-    // NextAuth's Credentials provider collapses every authorize() failure —
-    // wrong password, unknown email, a suspended/deactivated account — into
-    // the same generic "CredentialsSignin" error code by design. It never
-    // leaks which one, so the message here stays deliberately generic too
-    // rather than confirming whether an email exists on the platform.
     if (!result || result.error) {
-      setFormError("Incorrect email or password. Please try again.");
+      // authorize() throws a distinct EmailNotConfirmedError (code
+      // "EMAIL_NOT_CONFIRMED") when Supabase reports the account's email
+      // isn't confirmed yet — surfaced here as a specific, actionable
+      // message rather than the generic invalid-credentials one (Frontend
+      // Plan §D View 1). Every other authorize() failure (wrong password,
+      // unknown email, suspended account) collapses to the same generic
+      // message by design — it never leaks which one.
+      if (result?.error === "EMAIL_NOT_CONFIRMED") {
+        setFormError(
+          "Please confirm your email before signing in. Check your inbox for the confirmation link."
+        );
+      } else {
+        setFormError("Incorrect email or password. Please try again.");
+      }
       return;
     }
 
     // redirect:false means NextAuth never navigated for us — the session
-    // cookie is set, so re-read it to get the role written by the `jwt`/
-    // `session` callbacks, then decide where "home" is.
+    // cookie is set, so re-read it to get availableRoles/activeRole written
+    // by the jwt/session callbacks, then decide where "home" is.
     const session = await getSession();
-    const role = session?.user?.role;
-    const destination = callbackUrl || (role ? ROLE_HOME[role] : "/");
+    const activeRole = session?.user?.activeRole;
+    const destination = callbackUrl || (activeRole ? ROLE_HOME[activeRole] : "/");
 
     router.push(destination);
     router.refresh();

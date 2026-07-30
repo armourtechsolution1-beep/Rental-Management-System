@@ -14,8 +14,8 @@ export type PasswordInputProps = Omit<
  * Password field with a show/hide toggle, built on the existing `ui/input`
  * (no new design-system primitive needed). Lives in components/guest rather
  * than components/shared because it's currently only consumed by the guest
- * auth flow (Login now; Register and Reset Password will reuse it next) —
- * not part of the Phase 1 Shared Component Library scope.
+ * auth flow (Login now; Register, Reset Password, and Accept-Invite will
+ * reuse it next) — not part of the Phase 1 Shared Component Library scope.
  */
 export const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(
   ({ className, ...props }, ref) => {
@@ -32,8 +32,6 @@ export const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(
         <button
           type="button"
           onClick={() => setVisible((v) => !v)}
-          // Keep the toggle out of tab order between the field and the
-          // submit button — it's a convenience affordance, not a form field.
           tabIndex={-1}
           aria-label={visible ? "Hide password" : "Show password"}
           className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"

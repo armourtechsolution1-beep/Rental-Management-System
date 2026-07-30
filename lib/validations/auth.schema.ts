@@ -2,8 +2,8 @@ import { z } from "zod";
 
 /**
  * Login only validates *presence*, not password strength/complexity — those
- * rules belong to Register (new credentials) and Reset Password (new
- * credentials), never to an existing-password login form.
+ * rules belong to Register (new credentials), never to an existing-password
+ * login form.
  */
 export const loginSchema = z.object({
   email: z

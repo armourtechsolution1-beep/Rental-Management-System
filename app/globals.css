@@ -8,6 +8,12 @@
   .text-balance {
     text-wrap: balance;
   }
+  .border-border {
+    border-color: hsl(var(--border));
+  }
+  .outline-ring\/50 {
+    outline-color: hsl(var(--ring) / 0.5);
+  }
 }
 
 @layer base {
