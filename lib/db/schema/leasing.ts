@@ -1,6 +1,15 @@
 // leasing.leases + leasing.rent_schedules — RMS Backend Plan §3.6, §3.8
 
-import { pgSchema, uuid, text, numeric, date, timestamp, check, uniqueIndex } from 'drizzle-orm/pg-core';
+import {
+  pgSchema,
+  uuid,
+  numeric,
+  date,
+  timestamp,
+  check,
+  uniqueIndex,
+  type AnyPgColumn,
+} from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { paymentCycle, leaseType, leaseStatus, rentScheduleStatus } from './enums';
 import { profiles } from './public';
@@ -26,7 +35,7 @@ export const leases = leasingSchema.table(
     // by chk_leases_end_date_by_type in SQL.
     endDate: date('end_date'),
     status: leaseStatus('status').notNull().default('upcoming'),
-    renewedFromLeaseId: uuid('renewed_from_lease_id').references((): any => leases.id, { onDelete: 'set null' }),
+    renewedFromLeaseId: uuid('renewed_from_lease_id').references((): AnyPgColumn => leases.id, { onDelete: 'set null' }),
     archivedAt: timestamp('archived_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
