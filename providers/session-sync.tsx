@@ -18,9 +18,12 @@ export function SessionSync() {
       setUser({
         id: session.user.id,
         email: session.user.email ?? '',
-        name: session.user.name ?? '',
-        role: session.user.role,
-        avatarUrl: session.user.image,
+        fName: session.user.fName,
+        mName: session.user.mName,
+        lName: session.user.lName,
+        avatarUrl: session.user.image ?? null,
+        availableRoles: session.user.availableRoles,
+        activeRole: session.user.activeRole,
       });
     } else if (status === 'unauthenticated') {
       setUser(null);

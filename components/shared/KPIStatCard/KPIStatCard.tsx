@@ -36,7 +36,22 @@ export interface KPIStatCardProps {
   description?: string;
   /** Wraps the card in a Next.js Link when provided (e.g. link to the full report). */
   href?: string;
+  /** Initial load — no value has ever rendered. Swaps the value/trend/description region for a skeleton. */
   isLoading?: boolean;
+  /**
+   * Background refetch — a value is already on screen (TanStack Query's
+   * `isFetching && !isLoading` case: the Landlord Dashboard's 5-minute KPI
+   * refresh, a window-focus refetch, etc). Keeps the existing value fully
+   * visible rather than swapping to a skeleton — a full skeleton on every
+   * silent 5-minute refresh would be a distracting flash for a number that
+   * usually hasn't even changed. Deliberately lighter than SectionCard/
+   * DataTable's corner-spinner-badge treatment, since a KPI card is small
+   * enough that an absolutely-positioned badge would risk overlapping the
+   * trend line: instead, a small pulse dot appears on the icon badge and
+   * the value/trend/description region dims slightly, both reverting the
+   * instant fresh data arrives.
+   */
+  isRefetching?: boolean;
   className?: string;
 }
 
@@ -60,6 +75,7 @@ export function KPIStatCard({
   description,
   href,
   isLoading = false,
+  isRefetching = false,
   className,
 }: KPIStatCardProps) {
   const sentiment: "positive" | "negative" | "neutral" =
@@ -70,6 +86,7 @@ export function KPIStatCard({
         ? "negative"
         : "neutral");
   const TrendIcon = trend ? TREND_ICON[trend.direction] : null;
+  const showRefetchIndicator = isRefetching && !isLoading;
 
   const card = (
     <div
@@ -78,14 +95,24 @@ export function KPIStatCard({
         href && !isLoading && "hover:bg-accent/50",
         className
       )}
+      aria-busy={showRefetchIndicator || isLoading}
     >
       <div className="flex items-start justify-between gap-2">
         <span className="text-sm font-medium text-muted-foreground">
           {title}
         </span>
         {Icon && (
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-muted">
+          <div className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-muted">
             <Icon className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+            {showRefetchIndicator && (
+              <span
+                className="absolute -right-0.5 -top-0.5 flex h-2 w-2"
+                aria-hidden="true"
+              >
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary/60" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
+              </span>
+            )}
           </div>
         )}
       </div>
@@ -96,7 +123,12 @@ export function KPIStatCard({
           <Skeleton className="h-4 w-32" />
         </div>
       ) : (
-        <>
+        <div
+          className={cn(
+            "transition-opacity",
+            showRefetchIndicator && "opacity-60"
+          )}
+        >
           <div className="mt-2 text-2xl font-semibold tracking-tight">
             {value}
           </div>
@@ -121,13 +153,14 @@ export function KPIStatCard({
           {description && (
             <p className="mt-1 text-xs text-muted-foreground">{description}</p>
           )}
-        </>
+        </div>
       )}
     </div>
   );
 
   // Loading cards are never clickable — there's nothing to navigate to yet,
   // and a hover/focus affordance on a skeleton reads as broken, not "loading".
+  // Refetching cards stay clickable — the existing value is still valid.
   if (href && !isLoading) {
     return (
       <Link
