@@ -50,6 +50,12 @@ export default auth((req) => {
 });
 
 export const config = {
-  // Run on everything except static assets, images, and Next internals.
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|webp)$).*)'],
+  // Run on pages only — never on /api/**. NextAuth's own endpoints
+  // (/api/auth/session, /api/auth/csrf, etc.) must be reachable regardless
+  // of auth state or session bootstrapping breaks circularly (getSession()
+  // needs /api/auth/session to determine auth state in the first place).
+  // Every other Route Handler does its own auth/ownership checks per the
+  // backend plan's Guiding Principle #4 — middleware's redirect-to-/login
+  // behavior is for pages, not JSON API responses.
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|webp)$).*)'],
 };

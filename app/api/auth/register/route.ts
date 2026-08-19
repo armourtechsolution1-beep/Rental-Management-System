@@ -28,101 +28,116 @@ import { registerPayloadSchema } from "@/lib/validations/auth.schema";
  *    account with a profile but no landlord record.
  */
 export async function POST(request: Request) {
-  const body = await request.json().catch(() => null);
-
-  if (!body) {
-    return NextResponse.json(
-      { message: "Invalid request body." },
-      { status: 400 }
-    );
-  }
-
-  const parsed = registerPayloadSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json(
-      {
-        message: "Please check the form for errors.",
-        code: "VALIDATION_ERROR",
-        details: parsed.error.flatten(),
-      },
-      { status: 422 }
-    );
-  }
-
-  const { fName, mName, lName, email, password } = parsed.data;
-  const supabase = createSupabaseServiceRoleClient();
-
-  const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: {
-        f_name: fName,
-        m_name: mName || null,
-        l_name: lName,
-      },
-    },
-  });
-
-  if (signUpError) {
-    // VERIFY IN DEV: this assumes a duplicate-email signup surfaces as
-    // status 422 (supabase-js's documented behavior as of this writing, same
-    // caveat as the one already flagged in lib/auth/auth.config.ts about
-    // gotrue-js error shapes not staying identical across releases).
-    // Collapsed to a generic-sounding but still accurate message either way
-    // — same account-existence-leak principle as authorize()'s login
-    // failures, though a confirmed-duplicate case is safe to be explicit
-    // about since it doesn't reveal password-guessing information.
-    const isDuplicate =
-      signUpError.status === 422 || signUpError.code === "user_already_exists";
-
-    return NextResponse.json(
-      {
-        message: isDuplicate
-          ? "An account with this email already exists."
-          : "Could not create your account. Please try again.",
-        code: signUpError.code,
-      },
-      { status: isDuplicate ? 409 : 500 }
-    );
-  }
-
-  const userId = signUpData.user?.id;
-  if (!userId) {
-    return NextResponse.json(
-      { message: "Could not create your account. Please try again." },
-      { status: 500 }
-    );
-  }
-
   try {
-    await db.insert(landlords).values({ profileId: userId });
-  } catch (err) {
-    // Compensate: don't leave an orphaned auth user (with a profiles row via
-    // fn_handle_new_user) but no landlord record.
-    const { error: cleanupError } = await supabase.auth.admin.deleteUser(userId);
-    if (cleanupError) {
-      // Cleanup itself failing is a known, visible gap — surfaced in logs
-      // for manual follow-up rather than swallowed silently.
-      console.error(
-        `[register] Failed to clean up orphaned auth user ${userId} after landlords insert failure:`,
-        cleanupError
+    const body = await request.json().catch(() => null);
+
+    if (!body) {
+      return NextResponse.json(
+        { message: "Invalid request body." },
+        { status: 400 }
       );
     }
 
-    console.error("[register] people.landlords insert failed:", err);
+    const parsed = registerPayloadSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        {
+          message: "Please check the form for errors.",
+          code: "VALIDATION_ERROR",
+          details: parsed.error.flatten(),
+        },
+        { status: 422 }
+      );
+    }
 
+    const { fName, mName, lName, email, password } = parsed.data;
+    const supabase = createSupabaseServiceRoleClient();
+
+    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          f_name: fName,
+          m_name: mName || null,
+          l_name: lName,
+        },
+      },
+    });
+
+    if (signUpError) {
+      // VERIFY IN DEV: this assumes a duplicate-email signup surfaces as
+      // status 422 (supabase-js's documented behavior as of this writing, same
+      // caveat as the one already flagged in lib/auth/auth.config.ts about
+      // gotrue-js error shapes not staying identical across releases).
+      // Collapsed to a generic-sounding but still accurate message either way
+      // — same account-existence-leak principle as authorize()'s login
+      // failures, though a confirmed-duplicate case is safe to be explicit
+      // about since it doesn't reveal password-guessing information.
+      const isDuplicate =
+        signUpError.status === 422 || signUpError.code === "user_already_exists";
+
+      return NextResponse.json(
+        {
+          message: isDuplicate
+            ? "An account with this email already exists."
+            : "Could not create your account. Please try again.",
+          code: signUpError.code,
+        },
+        { status: isDuplicate ? 409 : 500 }
+      );
+    }
+
+    const userId = signUpData.user?.id;
+    if (!userId) {
+      return NextResponse.json(
+        { message: "Could not create your account. Please try again." },
+        { status: 500 }
+      );
+    }
+
+    try {
+      await db.insert(landlords).values({ profileId: userId });
+    } catch (err) {
+      // Compensate: don't leave an orphaned auth user (with a profiles row via
+      // fn_handle_new_user) but no landlord record.
+      const { error: cleanupError } = await supabase.auth.admin.deleteUser(userId);
+      if (cleanupError) {
+        // Cleanup itself failing is a known, visible gap — surfaced in logs
+        // for manual follow-up rather than swallowed silently.
+        console.error(
+          `[register] Failed to clean up orphaned auth user ${userId} after landlords insert failure:`,
+          cleanupError
+        );
+      }
+
+      console.error("[register] people.landlords insert failed:", err);
+
+      return NextResponse.json(
+        { message: "Could not create your account. Please try again." },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(
+      {
+        message:
+          "Account created. Please check your email to confirm your account.",
+      },
+      { status: 201 }
+    );
+  } catch (err) {
+    // Catch-all: anything unexpected (e.g. the DB pool failing to connect —
+    // check DATABASE_URL is the Transaction Pooler string, port 6543, not
+    // the direct db.<ref>.supabase.co:5432 host, which is IPv6-only and
+    // commonly unreachable from local dev networks) lands here instead of
+    // escaping uncaught. Logged server-side so the real cause shows up in
+    // the `next dev` terminal instead of just "Something went wrong" in the
+    // browser.
+    console.error("[register] Unhandled error in POST /api/auth/register:", err);
     return NextResponse.json(
       { message: "Could not create your account. Please try again." },
       { status: 500 }
     );
   }
-
-  return NextResponse.json(
-    {
-      message:
-        "Account created. Please check your email to confirm your account.",
-    },
-    { status: 201 }
-  );
 }

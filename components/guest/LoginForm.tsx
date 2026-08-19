@@ -48,18 +48,25 @@ export function LoginForm({ callbackUrl }: LoginFormProps) {
     });
 
     if (!result || result.error) {
-      // authorize() throws a distinct EmailNotConfirmedError (code
-      // "EMAIL_NOT_CONFIRMED") when Supabase reports the account's email
-      // isn't confirmed yet — surfaced here as a specific, actionable
-      // message rather than the generic invalid-credentials one (Frontend
-      // Plan §D View 1). Every other authorize() failure (wrong password,
-      // unknown email, suspended account) collapses to the same generic
-      // message by design — it never leaks which one.
-      if (result?.error === "EMAIL_NOT_CONFIRMED") {
+      // authorize() throws a distinct AuthorizeError (a CredentialsSignin
+      // subclass) with a specific `code` — "EMAIL_NOT_CONFIRMED",
+      // "ACCOUNT_SUSPENDED", or "NO_ACTIVE_ROLE" (auth.config.ts). But
+      // `result.error` from next-auth/react's signIn() is NEVER that code —
+      // it's always the generic error *type* string "CredentialsSignin",
+      // by Auth.js's own design (every CredentialsSignin instance reports
+      // the same `type` unless a subclass overrides the static `type`
+      // field, which AuthorizeError doesn't). The specific code Auth.js
+      // forwards separately as `result.code` (@auth/core's index.js sets
+      // `params.set("code", error.code)` on the redirect specifically
+      // for CredentialsSignin instances) — that's the field to branch on.
+      if (result?.code === "EMAIL_NOT_CONFIRMED") {
         setFormError(
           "Please confirm your email before signing in. Check your inbox for the confirmation link."
         );
       } else {
+        // Every other authorize() failure (wrong password, unknown email,
+        // ACCOUNT_SUSPENDED, NO_ACTIVE_ROLE) collapses to the same generic
+        // message by design — it never leaks which one.
         setFormError("Incorrect email or password. Please try again.");
       }
       return;
